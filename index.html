@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Racing Star — Championship Circuit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Russo+One&display=swap" rel="stylesheet">
+<style>
+:root {
+  --black: #0a0a0a; --black-2: #121212; --black-3: #1a1a1a; --black-card: #161616;
+  --red: #e10600; --red-bright: #ff2222; --red-dark: #8b0000; --red-glow: rgba(225,6,0,0.5);
+  --gold: #d4af37; --gold-bright: #ffd700; --gold-glow: rgba(212,175,55,0.5);
+  --yellow: #ffcc00; --yellow-bright: #ffe066;
+  --white: #ffffff; --text-dim: rgba(255,255,255,0.45); --text-mid: rgba(255,255,255,0.7);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%; overflow:hidden; background:var(--black);
+  font-family:'Rajdhani',sans-serif; color:var(--white);
+  user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent; touch-action:none;
+}
+#game { display:block; width:100vw; height:100vh; background:var(--black); }
+
+.overlay {
+  position:fixed; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; z-index:10;
+  opacity:0; pointer-events:none; transition:opacity 0.35s ease;
+  background:radial-gradient(ellipse at center, rgba(10,10,10,0.5) 0%, rgba(10,10,10,0.92) 100%);
+  overflow-y:auto;
+}
+.overlay.active { opacity:1; pointer-events:auto; }
+.panel {
+  background:rgba(16,16,16,0.88); backdrop-filter:blur(14px);
+  border:1px solid rgba(212,175,55,0.25);
+  box-shadow:0 0 60px rgba(225,6,0,0.15), 0 0 30px rgba(212,175,55,0.08);
+  padding:40px 48px; max-width:92vw; max-height:92vh; position:relative; overflow-y:auto;
+}
+.logo {
+  font-family:'Russo One',sans-serif; font-size:clamp(36px,7vw,68px);
+  letter-spacing:0.04em; line-height:1;
+  background:linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 40%, var(--red) 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 2px 12px rgba(225,6,0,0.4)); text-align:center;
+}
+.subtitle {
+  font-weight:600; font-size:13px; letter-spacing:0.4em;
+  color:var(--red-bright); text-transform:uppercase; text-align:center; margin-top:6px;
+}
+.section-title { font-family:'Russo One',sans-serif; font-size:26px; color:var(--gold); letter-spacing:0.05em; margin-bottom:6px; }
+.section-sub { font-size:13px; color:var(--text-dim); letter-spacing:0.2em; text-transform:uppercase; margin-bottom:24px; }
+.checker-strip { height:6px; background:repeating-linear-gradient(90deg, var(--white) 0 12px, var(--black) 12px 24px); margin:12px 0; }
+
+.btn {
+  font-family:'Russo One',sans-serif; font-size:14px; letter-spacing:0.15em;
+  text-transform:uppercase; color:var(--white); background:transparent;
+  border:2px solid var(--red); padding:13px 34px; cursor:pointer;
+  transition:all 0.2s ease; box-shadow:0 0 18px rgba(225,6,0,0.3), inset 0 0 10px rgba(225,6,0,0.1);
+}
+.btn:hover { background:var(--red); box-shadow:0 0 30px rgba(225,6,0,0.6); transform:translateY(-1px); }
+.btn:active { transform:translateY(0); }
+.btn.gold { border-color:var(--gold); box-shadow:0 0 18px var(--gold-glow), inset 0 0 10px rgba(212,175,55,0.1); color:var(--gold-bright); }
+.btn.gold:hover { background:var(--gold); color:var(--black); box-shadow:0 0 30px var(--gold-glow); }
+.btn.large { font-size:18px; padding:16px 48px; }
+.btn.small { font-size:12px; padding:8px 20px; }
+.btn:disabled { opacity:0.35; cursor:not-allowed; }
+.btn:disabled:hover { background:transparent; transform:none; box-shadow:0 0 18px rgba(225,6,0,0.3); }
+.btn-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
+
+.input-field {
+  width:100%; background:rgba(10,10,10,0.8); border:2px solid rgba(212,175,55,0.3);
+  color:var(--gold-bright); font-family:'Russo One',sans-serif; font-size:22px;
+  letter-spacing:0.1em; text-align:center; padding:14px 20px; outline:none;
+  text-transform:uppercase;
+}
+.input-field:focus { border-color:var(--red); box-shadow:0 0 16px rgba(225,6,0,0.3); }
+.input-field::placeholder { color:rgba(212,175,55,0.3); }
+
+.cards-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:18px; margin-bottom:20px; }
+.card {
+  background:rgba(10,10,10,0.6); border:2px solid rgba(255,255,255,0.08);
+  padding:20px; cursor:pointer; transition:all 0.25s ease; position:relative; overflow:hidden;
+}
+.card:hover { border-color:var(--gold); box-shadow:0 0 20px var(--gold-glow); transform:translateY(-3px); }
+.card.selected { border-color:var(--red); box-shadow:0 0 24px var(--red-glow); }
+.card.locked { opacity:0.55; cursor:not-allowed; }
+.card.locked:hover { border-color:rgba(255,255,255,0.08); box-shadow:none; transform:none; }
+.card-preview {
+  width:100%; height:100px; background:radial-gradient(ellipse at center, rgba(225,6,0,0.08) 0%, transparent 70%);
+  display:flex; align-items:center; justify-content:center; margin-bottom:12px;
+}
+.card-name { font-family:'Russo One',sans-serif; font-size:16px; color:var(--gold-bright); margin-bottom:4px; }
+.card-desc { font-size:12px; color:var(--text-dim); line-height:1.4; margin-bottom:8px; }
+.card-stats { display:flex; flex-direction:column; gap:5px; }
+.stat-row { display:flex; align-items:center; gap:8px; font-size:11px; }
+.stat-label { width:55px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.1em; }
+.stat-bar { flex:1; height:5px; background:rgba(255,255,255,0.08); }
+.stat-fill { height:100%; background:linear-gradient(90deg, var(--red), var(--gold)); }
+
+.star-row { display:flex; gap:4px; margin-top:8px; }
+.star {
+  width:18px; height:18px;
+  clip-path:polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  background:rgba(255,255,255,0.08);
+}
+.star.earned { background:linear-gradient(135deg, var(--gold-bright), var(--gold)); }
+
+.card-targets { margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06); font-size:11px; color:var(--text-dim); }
+.card-targets strong { color:var(--gold-bright); font-family:'Russo One',sans-serif; }
+.card-targets .t3 { color:var(--gold-bright); }
+.card-targets .t2 { color:var(--yellow); }
+
+.lock-overlay {
+  position:absolute; inset:0; background:rgba(10,10,10,0.78);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:2;
+}
+.lock-icon {
+  width:36px; height:36px; border:2px solid var(--red); border-radius:50%;
+  display:flex; align-items:center; justify-content:center; margin-bottom:8px;
+}
+.lock-icon svg { width:16px; height:16px; fill:var(--red); }
+.lock-text { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.15em; text-align:center; padding:0 10px; }
+
+.menu-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin:24px 0; }
+.menu-item {
+  background:rgba(10,10,10,0.6); border:2px solid rgba(255,255,255,0.06);
+  padding:24px 20px; cursor:pointer; text-align:center; transition:all 0.2s;
+}
+.menu-item:hover { border-color:var(--gold); background:rgba(225,6,0,0.05); }
+.menu-item-icon { margin-bottom:8px; display:flex; justify-content:center; }
+.menu-item-icon svg { width:32px; height:32px; fill:var(--gold); }
+.menu-item:hover .menu-item-icon svg { fill:var(--gold-bright); }
+.menu-item-label { font-family:'Russo One',sans-serif; font-size:14px; letter-spacing:0.1em; }
+.menu-item:hover .menu-item-label { color:var(--gold-bright); }
+
+.driver-badge {
+  display:inline-flex; align-items:center; gap:10px;
+  background:rgba(225,6,0,0.08); border:1px solid rgba(225,6,0,0.3);
+  padding:8px 18px; margin-bottom:16px;
+}
+.driver-badge-label { font-size:10px; color:var(--text-dim); letter-spacing:0.2em; text-transform:uppercase; }
+.driver-badge-name { font-family:'Russo One',sans-serif; font-size:16px; color:var(--red-bright); }
+
+.lb-tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+.lb-tab {
+  padding:8px 14px; background:transparent; border:1px solid rgba(255,255,255,0.1);
+  color:var(--text-dim); font-family:'Russo One',sans-serif; font-size:12px; cursor:pointer; transition:all 0.2s;
+}
+.lb-tab.active { border-color:var(--gold); color:var(--gold-bright); background:rgba(212,175,55,0.05); }
+.lb-entry {
+  display:grid; grid-template-columns:36px 1fr auto; align-items:center; gap:12px;
+  padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.lb-entry.player { background:rgba(225,6,0,0.06); border-left:3px solid var(--red); }
+.lb-rank { font-family:'Russo One',sans-serif; font-size:16px; color:var(--text-dim); }
+.lb-rank.gold { color:var(--gold-bright); } .lb-rank.silver { color:#c0c0c0; } .lb-rank.bronze { color:#cd7f32; }
+.lb-name { font-weight:600; font-size:14px; } .lb-car { font-size:11px; color:var(--text-dim); }
+.lb-time { font-family:'Russo One',sans-serif; font-size:16px; color:var(--gold-bright); font-variant-numeric:tabular-nums; }
+
+.ach-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:14px; }
+.ach-card { background:rgba(10,10,10,0.5); border:1px solid rgba(255,255,255,0.06); padding:16px; text-align:center; }
+.ach-card.unlocked { border-color:var(--gold); box-shadow:0 0 12px var(--gold-glow); }
+.ach-icon-wrap { width:44px; height:44px; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; }
+.ach-card.unlocked .ach-icon-wrap svg { fill:var(--gold-bright); }
+.ach-card:not(.unlocked) .ach-icon-wrap svg { fill:rgba(255,255,255,0.15); }
+.ach-name { font-family:'Russo One',sans-serif; font-size:12px; margin-bottom:4px; }
+.ach-card:not(.unlocked) .ach-name { color:var(--text-dim); }
+.ach-desc { font-size:11px; color:var(--text-dim); line-height:1.3; }
+
+.toast {
+  position:fixed; top:80px; left:50%; transform:translateX(-50%) translateY(-20px);
+  background:rgba(10,10,10,0.92); border:1px solid var(--gold); color:var(--gold-bright);
+  padding:12px 24px; font-family:'Russo One',sans-serif; font-size:13px; letter-spacing:0.15em;
+  opacity:0; transition:all 0.3s; z-index:100; pointer-events:none; box-shadow:0 0 20px var(--gold-glow);
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.toast.red { border-color:var(--red); color:var(--red-bright); box-shadow:0 0 20px var(--red-glow); }
+
+@media (max-width:600px) {
+  .panel { padding:24px 18px; }
+  .menu-grid { grid-template-columns:1fr; }
+  .cards-grid { grid-template-columns:1fr; }
+  .ach-grid { grid-template-columns:repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- Title Screen -->
+<div class="overlay active" id="titleScreen">
+  <div class="panel" style="text-align:center">
+    <div class="logo">RACING STAR</div>
+    <div class="subtitle">Championship Circuit</div>
+    <div class="checker-strip"></div>
+    <p style="color:var(--text-mid);font-size:14px;max-width:380px;margin:0 auto 20px;line-height:1.6">
+      Three legendary circuits. Three iconic machines. Earn three stars on each track to unlock the next challenge.
+    </p>
+    <div class="btn-row"><button class="btn gold large" id="titleStartBtn">Press Start</button></div>
+  </div>
+</div>
+
+<!-- Driver Setup -->
+<div class="overlay" id="driverScreen">
+  <div class="panel" style="text-align:center;width:min(440px,92vw)">
+    <div class="section-title">Driver Registration</div>
+    <div class="section-sub">Enter your racing name</div>
+    <input type="text" class="input-field" id="driverNameInput" maxlength="12" placeholder="ENTER NAME" autocomplete="off">
+    <div class="btn-row">
+      <button class="btn gold" id="driverConfirmBtn">Confirm</button>
+      <button class="btn small" id="driverBackBtn" style="border-color:rgba(255,255,255,0.2)">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main Menu -->
+<div class="overlay" id="menuScreen">
+  <div class="panel" style="text-align:center;width:min(460px,92vw)">
+    <div class="driver-badge"><div><div class="driver-badge-label">Driver</div><div class="driver-badge-name" id="menuDriverName">—</div></div></div>
+    <div class="checker-strip"></div>
+    <div class="menu-grid">
+      <div class="menu-item" data-action="race">
+        <div class="menu-item-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 12l10 10 10-10zM12 6l6 6-6 6-6-6z"/></svg></div>
+        <div class="menu-item-label">Race</div>
+      </div>
+      <div class="menu-item" data-action="garage">
+        <div class="menu-item-icon"><svg viewBox="0 0 24 24"><path d="M3 18v-6l2-5h14l2 5v6h-2v2h-2v-2H7v2H5v-2zm2-7h14l-1-3H6zm2 4a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm10 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/></svg></div>
+        <div class="menu-item-label">Garage</div>
+      </div>
+      <div class="menu-item" data-action="leaderboard">
+        <div class="menu-item-icon"><svg viewBox="0 0 24 24"><path d="M16 3v6a4 4 0 11-8 0V3h2v6a2 2 0 104 0V3zM4 13a8 8 0 0016 0H4z"/></svg></div>
+        <div class="menu-item-label">Leaderboard</div>
+      </div>
+      <div class="menu-item" data-action="achievements">
+        <div class="menu-item-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.5 6 6.5.5-5 4.5 1.5 6.5L12 16.5 6.5 19.5 8 13 3 8.5l6.5-.5z"/></svg></div>
+        <div class="menu-item-label">Trophies</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Circuit Select -->
+<div class="overlay" id="circuitScreen">
+  <div class="panel" style="width:min(820px,94vw)">
+    <div class="section-title">Select Circuit</div>
+    <div class="section-sub">Earn 3 stars to unlock the next track</div>
+    <div class="cards-grid" id="circuitCards"></div>
+    <div class="btn-row">
+      <button class="btn gold" id="circuitNextBtn" disabled>Continue</button>
+      <button class="btn small" id="circuitBackBtn" style="border-color:rgba(255,255,255,0.2)">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- Car Select -->
+<div class="overlay" id="carScreen">
+  <div class="panel" style="width:min(820px,94vw)">
+    <div class="section-title">Select Your Machine</div>
+    <div class="section-sub" id="carScreenSub">Choose your car</div>
+    <div class="cards-grid" id="carCards"></div>
+    <div class="btn-row">
+      <button class="btn gold" id="carRaceBtn" disabled>Start Race</button>
+      <button class="btn small" id="carBackBtn" style="border-color:rgba(255,255,255,0.2)">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- Leaderboard -->
+<div class="overlay" id="leaderboardScreen">
+  <div class="panel" style="width:min(520px,94vw)">
+    <div class="section-title">Leaderboard</div>
+    <div class="section-sub">Fastest lap times</div>
+    <div class="lb-tabs" id="lbTabs"></div>
+    <div id="lbList"></div>
+    <div class="btn-row"><button class="btn small" id="lbBackBtn" style="border-color:rgba(255,255,255,0.2)">Back</button></div>
+  </div>
+</div>
+
+<!-- Achievements -->
+<div class="overlay" id="achievementsScreen">
+  <div class="panel" style="width:min(640px,94vw)">
+    <div class="section-title">Trophy Room</div>
+    <div class="section-sub" id="achProgress">0 / 0 unlocked</div>
+    <div class="ach-grid" id="achGrid"></div>
+    <div class="btn-row"><button class="btn small" id="achBackBtn" style="border-color:rgba(255,255,255,0.2)">Back</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// === CONFIGURATION (shared with race.html) ===
+const CARS = {
+  porsche: {
+    id:'porsche', name:'Porsche 911', type:'porsche',
+    description:'Balanced precision engineering from Stuttgart',
+    maxSpeed:290, acceleration:1.0, handling:1.15, boostPower:1.35,
+    bodyColor:'#cc0000', accentColor:'#ff3333', glowColor:'#e10600',
+    unlockRequirement:null,
+    stats:{ speed:78, accel:75, handling:88 }
+  },
+  lamborghini: {
+    id:'lamborghini', name:'Lamborghini Aventador', type:'lamborghini',
+    description:'Raw Italian fury with savage acceleration',
+    maxSpeed:350, acceleration:1.3, handling:0.82, boostPower:1.55,
+    bodyColor:'#ffcc00', accentColor:'#ffe066', glowColor:'#ffcc00',
+    unlockRequirement:{ circuit:'sunset', stars:3 },
+    stats:{ speed:96, accel:92, handling:58 }
+  },
+  ferrari: {
+    id:'ferrari', name:'Ferrari LaFerrari', type:'ferrari',
+    description:'The prancing horse — ultimate hybrid hypercar',
+    maxSpeed:370, acceleration:1.18, handling:1.0, boostPower:1.48,
+    bodyColor:'#d4af37', accentColor:'#ffd700', glowColor:'#d4af37',
+    unlockRequirement:{ circuit:'mountain', stars:3 },
+    stats:{ speed:100, accel:86, handling:82 }
+  }
+};
+
+const CIRCUITS = {
+  sunset: {
+    id:'sunset', name:'Sunset Circuit', theme:'sunset',
+    description:'Golden hour sprint along the coastal highway',
+    laps:3, lapDistance:800,
+    threeStarTime:40, twoStarTime:52,
+    baseSpeed:100, maxSpeed:280, obstacleRate:1.0,
+    unlockRequirement:null
+  },
+  mountain: {
+    id:'mountain', name:'Mountain Pass', theme:'mountain',
+    description:'Treacherous hairpins through alpine peaks',
+    laps:3, lapDistance:1000,
+    threeStarTime:58, twoStarTime:72,
+    baseSpeed:120, maxSpeed:320, obstacleRate:1.35,
+    unlockRequirement:{ circuit:'sunset', stars:3 }
+  },
+  grandprix: {
+    id:'grandprix', name:'Grand Prix Circuit', theme:'grandprix',
+    description:'The ultimate professional championship track',
+    laps:3, lapDistance:1200,
+    threeStarTime:80, twoStarTime:95,
+    baseSpeed:140, maxSpeed:360, obstacleRate:1.65,
+    unlockRequirement:{ circuit:'mountain', stars:3 }
+  }
+};
+
+const ACHIEVEMENTS = {
+  firstDrive: { id:'firstDrive', name:'First Drive', description:'Complete your first race',
+    icon:'<svg viewBox="0 0 24 24"><path d="M4 2v20h2V15h11l-1.5-4 1.5-4H6V2z"/></svg>' },
+  speedDemon: { id:'speedDemon', name:'Speed Demon', description:'Reach 300 km/h in a race',
+    icon:'<svg viewBox="0 0 24 24"><path d="M13 2L4 14h6l-2 8 10-12h-6z"/></svg>' },
+  perfectRun: { id:'perfectRun', name:'Perfect Run', description:'Finish a race with zero crashes',
+    icon:'<svg viewBox="0 0 24 24"><path d="M12 2l2.8 6.6 7.2.6-5.4 4.7 1.6 7L12 17.3 6.4 20.9l1.6-7L2.8 9.2l7.2-.6z"/></svg>' },
+  veteran: { id:'veteran', name:'Veteran Driver', description:'Complete 5 races',
+    icon:'<svg viewBox="0 0 24 24"><circle cx="12" cy="14" r="7"/><path d="M9 2h6v3H9z"/><path d="M8 4h8l-1 3H9z"/></svg>' },
+  threeStarMaster: { id:'threeStarMaster', name:'Three Star Master', description:'Earn 3 stars on any circuit',
+    icon:'<svg viewBox="0 0 24 24"><path d="M12 2l2.5 6 6.5.5-5 4.5 1.5 6.5L12 16.5 6.5 19.5 8 13 3 8.5l6.5-.5z"/></svg>' },
+  allStar: { id:'allStar', name:'Champion', description:'Earn 3 stars on all three circuits',
+    icon:'<svg viewBox="0 0 24 24"><path d="M6 2v5a4 4 0 004 4v2H8v2h8v-2h-2v-2a4 4 0 004-4V2zM9 19h6v2H9z"/></svg>' }
+};
+
+const DEFAULT_LEADERBOARD = {
+  sunset: [
+    { name:'HAMILTON', time:38.42, car:'ferrari', isAI:true },
+    { name:'VETSEL', time:41.15, car:'lamborghini', isAI:true },
+    { name:'RAIKKONEN', time:44.33, car:'porsche', isAI:true },
+    { name:'NORRIS', time:48.06, car:'porsche', isAI:true },
+    { name:'VERSTAPPEN', time:51.71, car:'lamborghini', isAI:true },
+  ],
+  mountain: [
+    { name:'HAMILTON', time:55.42, car:'ferrari', isAI:true },
+    { name:'VERSTAPPEN', time:60.15, car:'lamborghini', isAI:true },
+    { name:'NORRIS', time:65.88, car:'porsche', isAI:true },
+  ],
+  grandprix: [
+    { name:'HAMILTON', time:76.22, car:'ferrari', isAI:true },
+    { name:'VERSTAPPEN', time:82.74, car:'lamborghini', isAI:true },
+  ]
+};
+
+// === STATE ===
+const gameState = {
+  driverName:'', selectedCar:null, selectedCircuit:null,
+  unlockedCars:['porsche'], unlockedCircuits:['sunset'],
+  achievements:{},
+  leaderboard:JSON.parse(JSON.stringify(DEFAULT_LEADERBOARD)),
+  totalRaces:0,
+  bestTimes:{ sunset:null, mountain:null, grandprix:null },
+  maxSpeedReached:0,
+  circuitStars:{ sunset:0, mountain:0, grandprix:0 }
+};
+
+function saveGame() {
+  try { localStorage.setItem('racingStar', JSON.stringify(gameState)); } catch(e) {}
+}
+function loadGame() {
+  try {
+    const d = JSON.parse(localStorage.getItem('racingStar'));
+    if (d) {
+      Object.assign(gameState, d);
+      for (const cid of Object.keys(CIRCUITS)) {
+        if (!gameState.leaderboard[cid]) gameState.leaderboard[cid] = [];
+        if (gameState.bestTimes[cid] === undefined) gameState.bestTimes[cid] = null;
+        if (gameState.circuitStars[cid] === undefined) gameState.circuitStars[cid] = 0;
+      }
+    }
+  } catch(e) {}
+}
+
+function formatTime(s) {
+  const m = Math.floor(s/60), sec = Math.floor(s%60), ms = Math.floor((s%1)*100);
+  return `${m}:${String(sec).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
+}
+
+// === BACKGROUND CANVAS ===
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W=0, H=0, DPR=1;
+const road = { horizonY:0, bottomY:0, topWidth:0, bottomWidth:0, centerX:0, depth:400 };
+let gridLines=[], stars=[], buildings=[];
+let bgTime = 0;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.floor(W*DPR); canvas.height = Math.floor(H*DPR);
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  road.horizonY = H*0.40; road.bottomY = H+20; road.centerX = W/2;
+  road.topWidth = Math.max(40, W*0.07); road.bottomWidth = Math.max(320, W*0.88);
+  initBgElements();
+}
+window.addEventListener('resize', resize);
+
+function project(z, x) {
+  const scale = road.depth / (road.depth + Math.max(0, z));
+  const y = road.horizonY + (road.bottomY - road.horizonY) * scale;
+  const halfW = (road.topWidth + (road.bottomWidth - road.topWidth) * scale) / 2;
+  return { x: road.centerX + x * halfW, y, scale, halfWidth: halfW };
+}
+
+function initBgElements() {
+  gridLines = [];
+  for (let i=0; i<45; i++) gridLines.push({ z:i*14, type:i%4===0?'major':'minor' });
+  stars = [];
+  for (let i=0; i<80; i++) stars.push({
+    x:Math.random()*W, y:Math.random()*road.horizonY*0.8,
+    size:Math.random()*1.5+0.5, twinkle:Math.random()*6.28
+  });
+  buildings = [];
+  let x = -30, seed = 42;
+  function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+  while (x < W+30) {
+    const w=16+rnd()*38, h=10+rnd()*48, wins=[];
+    for (let r=0; r<Math.floor(h/4); r++) for (let c=0; c<Math.floor(w/4); c++)
+      if (rnd()>0.6) wins.push({x:c*4+1,y:r*4+1,a:0.2+rnd()*0.4,c:rnd()>0.5?'gold':'red'});
+    buildings.push({x,w,h,wins}); x += w;
+  }
+}
+
+function renderBg() {
+  ctx.fillStyle = '#050008';
+  ctx.fillRect(0, 0, W, H);
+
+  // Sky
+  const g = ctx.createLinearGradient(0,0,0,road.horizonY);
+  g.addColorStop(0,'#0a0a0a'); g.addColorStop(0.4,'#1a0508'); g.addColorStop(0.75,'#3d0a05'); g.addColorStop(1,'#660f00');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, road.horizonY);
+  const g2 = ctx.createLinearGradient(0,road.horizonY,0,H);
+  g2.addColorStop(0,'#0a0a0a'); g2.addColorStop(1,'#000');
+  ctx.fillStyle = g2; ctx.fillRect(0, road.horizonY, W, H-road.horizonY);
+
+  // Sun
+  const cx=road.centerX, cy=road.horizonY-10, r=Math.min(W,H)*0.14;
+  const sg = ctx.createLinearGradient(cx,cy-r,cx,cy+r);
+  sg.addColorStop(0,'#ffe066'); sg.addColorStop(0.5,'#ffcc00'); sg.addColorStop(1,'#e10600');
+  ctx.save();
+  ctx.shadowColor='#ff5500'; ctx.shadowBlur=50;
+  ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(cx,cy,r,0,6.28); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.globalCompositeOperation='destination-out';
+  for (let i=0; i<6; i++) { const t=(i+1)/7; ctx.fillRect(cx-r-5, cy+r*0.15+r*t*0.85, r*2+10, 2+t*3); }
+  ctx.restore();
+
+  // Stars
+  for (const s of stars) {
+    const b=0.3+(Math.sin(s.twinkle)*0.5+0.5)*0.6;
+    ctx.fillStyle=`rgba(255,200,100,${b})`; ctx.fillRect(s.x,s.y,s.size,s.size);
+  }
+
+  // Buildings
+  for (const b of buildings) {
+    ctx.fillStyle='#050008'; ctx.fillRect(b.x, road.horizonY-b.h, b.w, b.h);
+    ctx.strokeStyle='rgba(225,6,0,0.2)'; ctx.lineWidth=0.5; ctx.strokeRect(b.x, road.horizonY-b.h, b.w, b.h);
+    for (const w of b.wins) {
+      const col = w.c==='gold'?'212,175,55':'225,6,0';
+      ctx.fillStyle=`rgba(${col},${w.a})`; ctx.fillRect(b.x+w.x, road.horizonY-b.h+w.y, 1.5, 1.5);
+    }
+  }
+
+  // Road
+  const rg = ctx.createLinearGradient(0,road.horizonY,0,road.bottomY);
+  rg.addColorStop(0,'#080006'); rg.addColorStop(0.3,'#0d0008'); rg.addColorStop(1,'#150010');
+  ctx.fillStyle=rg;
+  ctx.beginPath();
+  ctx.moveTo(road.centerX-road.topWidth/2, road.horizonY);
+  ctx.lineTo(road.centerX+road.topWidth/2, road.horizonY);
+  ctx.lineTo(road.centerX+road.bottomWidth/2, road.bottomY);
+  ctx.lineTo(road.centerX-road.bottomWidth/2, road.bottomY);
+  ctx.closePath(); ctx.fill();
+
+  ctx.strokeStyle='#e10600'; ctx.lineWidth=3; ctx.shadowColor='#e10600'; ctx.shadowBlur=16;
+  ctx.beginPath(); ctx.moveTo(road.centerX-road.topWidth/2, road.horizonY); ctx.lineTo(road.centerX-road.bottomWidth/2, road.bottomY); ctx.stroke();
+  ctx.strokeStyle='#d4af37'; ctx.shadowColor='#d4af37';
+  ctx.beginPath(); ctx.moveTo(road.centerX+road.topWidth/2, road.horizonY); ctx.lineTo(road.centerX+road.bottomWidth/2, road.bottomY); ctx.stroke();
+  ctx.shadowBlur=0;
+
+  // Grid lines
+  for (const line of gridLines) {
+    if (line.z < 0) continue;
+    const proj = project(line.z, 0);
+    if (proj.scale <= 0.01) continue;
+    const halfW = (road.topWidth + (road.bottomWidth - road.topWidth) * proj.scale) / 2;
+    const a = Math.min(0.6, proj.scale*1.5);
+    if (line.type === 'major') {
+      ctx.strokeStyle = `rgba(225,6,0,${a})`; ctx.shadowColor='#e10600'; ctx.shadowBlur=5;
+      ctx.lineWidth = Math.max(0.5, proj.scale*1.3);
+    } else {
+      ctx.strokeStyle = `rgba(225,6,0,${a*0.3})`; ctx.shadowBlur=0;
+      ctx.lineWidth = Math.max(0.3, proj.scale*0.7);
+    }
+    ctx.beginPath(); ctx.moveTo(road.centerX-halfW, proj.y); ctx.lineTo(road.centerX+halfW, proj.y); ctx.stroke();
+  }
+  ctx.shadowBlur=0;
+
+  // Center dashes
+  const dashSp=26, dashLen=13, offset=bgTime*40 % dashSp;
+  ctx.strokeStyle='#ffcc00'; ctx.shadowColor='#ffcc00'; ctx.shadowBlur=6;
+  for (let i=0; i<25; i++) {
+    const zs=i*dashSp-offset, ze=zs-dashLen;
+    if (zs<0||ze<0) continue;
+    const p1=project(zs,0), p2=project(ze,0);
+    if (p1.scale<=0.01) continue;
+    ctx.globalAlpha=Math.min(1,p1.scale*2); ctx.lineWidth=Math.max(1,p1.scale*3.5);
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+  }
+  ctx.globalAlpha=1; ctx.shadowBlur=0;
+
+  // Vignette
+  const vg = ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.75);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.55)');
+  ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+}
+
+let lastTime = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now-lastTime)/1000);
+  lastTime = now;
+  bgTime += dt;
+  for (const s of stars) s.twinkle += dt*2;
+  const scrollSp = 60;
+  for (const line of gridLines) { line.z -= scrollSp*dt; if (line.z < -14) line.z += gridLines.length*14; }
+  renderBg();
+  requestAnimationFrame(loop);
+}
+
+// === SCREEN MANAGEMENT ===
+function hideAllOverlays() { document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('active')); }
+function showScreen(id) { hideAllOverlays(); document.getElementById(id).classList.add('active'); }
+const toast = document.getElementById('toast');
+function showToast(msg, red=false) {
+  toast.textContent = msg; toast.className = 'toast show' + (red?' red':'');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>toast.classList.remove('show'), 2200);
+}
+
+// === AUDIO (minimal for UI clicks) ===
+let audioCtx = null;
+function initAudio() {
+  if (audioCtx) return;
+  try { audioCtx = new (window.AudioContext||window.webkitAudioContext)(); } catch(e) {}
+}
+function playSound(type) {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+  if (type === 'click') {
+    o.type='square'; o.frequency.setValueAtTime(800,now); o.frequency.exponentialRampToValueAtTime(400,now+0.06);
+    g.gain.setValueAtTime(0.1,now); g.gain.exponentialRampToValueAtTime(0.001,now+0.08);
+  } else if (type === 'unlock') {
+    [440,554,659].forEach((f,i) => {
+      const oo=audioCtx.createOscillator(); const gg=audioCtx.createGain();
+      oo.type='sine'; oo.frequency.value=f;
+      const t=now+i*0.08;
+      gg.gain.setValueAtTime(0,t); gg.gain.linearRampToValueAtTime(0.12,t+0.02); gg.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+      oo.connect(gg); gg.connect(audioCtx.destination); oo.start(t); oo.stop(t+0.25);
+    });
+    return;
+  }
+  o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now+0.1);
+}
+
+// === CARD BUILDING ===
+function buildCircuitCards() {
+  const container = document.getElementById('circuitCards');
+  container.innerHTML = '';
+  for (const circuit of Object.values(CIRCUITS)) {
+    const unlocked = gameState.unlockedCircuits.includes(circuit.id);
+    const stars = gameState.circuitStars[circuit.id] || 0;
+    const best = gameState.bestTimes[circuit.id];
+    const card = document.createElement('div');
+    card.className = 'card' + (unlocked?'':' locked') + (gameState.selectedCircuit===circuit.id?' selected':'');
+
+    let starsHtml = '<div class="star-row">';
+    for (let i=0; i<3; i++) starsHtml += `<div class="star${i<stars?' earned':''}"></div>`;
+    starsHtml += '</div>';
+
+    let html = '<div class="card-preview"><canvas width="180" height="100"></canvas></div>';
+    html += `<div class="card-name">${circuit.name}</div>`;
+    html += `<div class="card-desc">${circuit.description}</div>`;
+    html += `<div class="card-desc">${circuit.laps} Laps &times; ${circuit.lapDistance}m</div>`;
+    html += starsHtml;
+    html += `<div class="card-targets">
+      <span class="t3">★★★ ${formatTime(circuit.threeStarTime)}</span> &nbsp;
+      <span class="t2">★★ ${formatTime(circuit.twoStarTime)}</span><br>
+      Best: <strong>${best !== null ? formatTime(best) : '—'}</strong>
+    </div>`;
+
+    if (!unlocked) {
+      const req = circuit.unlockRequirement;
+      const reqCircuit = CIRCUITS[req.circuit].name;
+      html += `<div class="lock-overlay">
+        <div class="lock-icon"><svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 00-5 5v3H5v13h14V9h-2V6a5 5 0 00-5-5zm-3 8V6a3 3 0 016 0v3z"/></svg></div>
+        <div class="lock-text">Need ${req.stars}★ on ${reqCircuit}</div>
+      </div>`;
+    }
+    card.innerHTML = html;
+
+    // Mini preview canvas
+    const cv = card.querySelector('canvas');
+    const cc = cv.getContext('2d');
+    cc.fillStyle = '#0a0a0a'; cc.fillRect(0,0,180,100);
+    cc.fillStyle = '#150010';
+    cc.beginPath(); cc.moveTo(70,10); cc.lineTo(110,10); cc.lineTo(170,100); cc.lineTo(10,100); cc.closePath(); cc.fill();
+    cc.strokeStyle = '#e10600'; cc.lineWidth = 2;
+    cc.beginPath(); cc.moveTo(70,10); cc.lineTo(10,100); cc.stroke();
+    cc.strokeStyle = '#d4af37';
+    cc.beginPath(); cc.moveTo(110,10); cc.lineTo(170,100); cc.stroke();
+    for (let i=0; i<10; i++) { cc.fillStyle = i%2===0?'#fff':'#000'; cc.fillRect(10+i*16, 94, 16, 6); }
+
+    if (unlocked) {
+      card.addEventListener('click', () => {
+        gameState.selectedCircuit = circuit.id;
+        buildCircuitCards();
+        document.getElementById('circuitNextBtn').disabled = false;
+        playSound('click');
+      });
+    }
+    container.appendChild(card);
+  }
+}
+
+function buildCarCards() {
+  const container = document.getElementById('carCards');
+  container.innerHTML = '';
+  for (const car of Object.values(CARS)) {
+    const unlocked = gameState.unlockedCars.includes(car.id);
+    const card = document.createElement('div');
+    card.className = 'card' + (unlocked?'':' locked') + (gameState.selectedCar===car.id?' selected':'');
+
+    let html = '<div class="card-preview"><canvas width="180" height="100"></canvas></div>';
+    html += `<div class="card-name">${car.name}</div>`;
+    html += `<div class="card-desc">${car.description}</div>`;
+    html += '<div class="card-stats">';
+    html += `<div class="stat-row"><span class="stat-label">Speed</span><div class="stat-bar"><div class="stat-fill" style="width:${car.stats.speed}%"></div></div></div>`;
+    html += `<div class="stat-row"><span class="stat-label">Accel</span><div class="stat-bar"><div class="stat-fill" style="width:${car.stats.accel}%"></div></div></div>`;
+    html += `<div class="stat-row"><span class="stat-label">Grip</span><div class="stat-bar"><div class="stat-fill" style="width:${car.stats.handling}%"></div></div></div>`;
+    html += '</div>';
+
+    if (!unlocked) {
+      const req = car.unlockRequirement;
+      const reqCircuit = CIRCUITS[req.circuit].name;
+      html += `<div class="lock-overlay">
+        <div class="lock-icon"><svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 00-5 5v3H5v13h14V9h-2V6a5 5 0 00-5-5zm-3 8V6a3 3 0 016 0v3z"/></svg></div>
+        <div class="lock-text">Need ${req.stars}★ on ${reqCircuit}</div>
+      </div>`;
+    }
+    card.innerHTML = html;
+
+    // Car preview
+    const cv = card.querySelector('canvas');
+    const cc = cv.getContext('2d');
+    cc.save(); cc.translate(90, 50);
+    drawCarPreview(cc, car);
+    cc.restore();
+
+    if (unlocked) {
+      card.addEventListener('click', () => {
+        gameState.selectedCar = car.id;
+        buildCarCards();
+        document.getElementById('carRaceBtn').disabled = false;
+        playSound('click');
+      });
+    }
+    container.appendChild(card);
+  }
+}
+
+function drawCarPreview(c, car) {
+  const w = 45, h = 70;
+  c.shadowColor = car.glowColor; c.shadowBlur = 12;
+  c.fillStyle = car.bodyColor;
+  if (car.type === 'porsche') {
+    c.beginPath();
+    c.roundRect ? c.roundRect(-w/2, -h/2, w, h, 6) : c.rect(-w/2, -h/2, w, h);
+    c.fill();
+  } else if (car.type === 'lamborghini') {
+    c.beginPath();
+    c.moveTo(-w/2+2,-h/2); c.lineTo(w/2-2,-h/2); c.lineTo(w/2,-h/2+6);
+    c.lineTo(w/2,h/2-3); c.lineTo(w/2-3,h/2); c.lineTo(-w/2+3,h/2);
+    c.lineTo(-w/2,h/2-3); c.lineTo(-w/2,-h/2+6); c.closePath(); c.fill();
+  } else {
+    c.beginPath();
+    c.moveTo(-w/2+3,-h/2); c.lineTo(w/2-3,-h/2);
+    c.quadraticCurveTo(w/2,-h/2,w/2,-h/2+5); c.lineTo(w/2,h/2-6);
+    c.quadraticCurveTo(w/2,h/2,w/2-3,h/2); c.lineTo(-w/2+3,h/2);
+    c.quadraticCurveTo(-w/2,h/2,-w/2,h/2-6); c.lineTo(-w/2,-h/2+5);
+    c.quadraticCurveTo(-w/2,-h/2,-w/2+3,-h/2); c.closePath(); c.fill();
+  }
+  c.shadowBlur = 0;
+  // Tail lights
+  c.fillStyle = '#ff0040';
+  c.fillRect(-w/2+3, h/2-6, w*0.22, 3);
+  c.fillRect(w/2-3-w*0.22, h/2-6, w*0.22, 3);
+  // Window
+  c.fillStyle = 'rgba(10,15,25,0.85)';
+  c.fillRect(-w/2+5, -h/2+h*0.2, w-10, h*0.25);
+}
+
+function buildLeaderboard(circuitId) {
+  const lb = gameState.leaderboard[circuitId] || [];
+  const list = document.getElementById('lbList');
+  list.innerHTML = '';
+  if (lb.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:30px">No times recorded yet</div>';
+    return;
+  }
+  lb.forEach((entry, i) => {
+    const row = document.createElement('div');
+    row.className = 'lb-entry' + (!entry.isAI ? ' player' : '');
+    const rc = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const car = CARS[entry.car] ? CARS[entry.car].name.split(' ')[0] : '—';
+    row.innerHTML = `
+      <div class="lb-rank ${rc}">${i+1}</div>
+      <div><div class="lb-name">${entry.name}</div><div class="lb-car">${car}</div></div>
+      <div class="lb-time">${formatTime(entry.time)}</div>`;
+    list.appendChild(row);
+  });
+}
+
+function buildLeaderboardTabs() {
+  const tabs = document.getElementById('lbTabs');
+  tabs.innerHTML = '';
+  for (const circuit of Object.values(CIRCUITS)) {
+    const tab = document.createElement('button');
+    tab.className = 'lb-tab';
+    tab.textContent = circuit.name.split(' ')[0];
+    tab.addEventListener('click', () => {
+      tabs.querySelectorAll('.lb-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      buildLeaderboard(circuit.id);
+      playSound('click');
+    });
+    tabs.appendChild(tab);
+  }
+  tabs.querySelector('.lb-tab')?.classList.add('active');
+}
+
+function buildAchievements() {
+  const grid = document.getElementById('achGrid');
+  grid.innerHTML = '';
+  let count = 0;
+  for (const ach of Object.values(ACHIEVEMENTS)) {
+    const unlocked = !!gameState.achievements[ach.id];
+    if (unlocked) count++;
+    const card = document.createElement('div');
+    card.className = 'ach-card' + (unlocked?' unlocked':'');
+    card.innerHTML = `
+      <div class="ach-icon-wrap">${ach.icon}</div>
+      <div class="ach-name">${ach.name}</div>
+      <div class="ach-desc">${ach.description}</div>`;
+    grid.appendChild(card);
+  }
+  document.getElementById('achProgress').textContent = `${count} / ${Object.keys(ACHIEVEMENTS).length} unlocked`;
+}
+
+// === EVENT BINDINGS ===
+document.getElementById('titleStartBtn').addEventListener('click', () => {
+  initAudio();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  playSound('click');
+  if (!gameState.driverName) {
+    showScreen('driverScreen');
+    document.getElementById('driverNameInput').focus();
+  } else {
+    showMenu();
+  }
+});
+
+document.getElementById('driverConfirmBtn').addEventListener('click', () => {
+  const name = document.getElementById('driverNameInput').value.trim().toUpperCase();
+  if (name.length < 2) { showToast('Name too short', true); return; }
+  gameState.driverName = name;
+  saveGame();
+  playSound('click');
+  showMenu();
+});
+document.getElementById('driverNameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('driverConfirmBtn').click();
+});
+document.getElementById('driverBackBtn').addEventListener('click', () => { playSound('click'); showScreen('titleScreen'); });
+
+function showMenu() {
+  document.getElementById('menuDriverName').textContent = gameState.driverName || '—';
+  showScreen('menuScreen');
+}
+
+document.querySelectorAll('.menu-item').forEach(item => {
+  item.addEventListener('click', () => {
+    playSound('click');
+    const action = item.dataset.action;
+    if (action === 'race') {
+      gameState.selectedCircuit = null;
+      gameState.selectedCar = null;
+      buildCircuitCards();
+      document.getElementById('circuitNextBtn').disabled = true;
+      showScreen('circuitScreen');
+    } else if (action === 'garage') {
+      buildCarCards();
+      document.getElementById('carRaceBtn').disabled = true;
+      document.getElementById('carRaceBtn').textContent = 'Close';
+      document.getElementById('carScreenSub').textContent = 'Your Garage';
+      showScreen('carScreen');
+    } else if (action === 'leaderboard') {
+      buildLeaderboardTabs();
+      buildLeaderboard(Object.keys(CIRCUITS)[0]);
+      showScreen('leaderboardScreen');
+    } else if (action === 'achievements') {
+      buildAchievements();
+      showScreen('achievementsScreen');
+    }
+  });
+});
+
+document.getElementById('circuitNextBtn').addEventListener('click', () => {
+  if (!gameState.selectedCircuit) return;
+  playSound('click');
+  buildCarCards();
+  document.getElementById('carRaceBtn').disabled = true;
+  document.getElementById('carRaceBtn').textContent = 'Start Race';
+  document.getElementById('carScreenSub').textContent = CIRCUITS[gameState.selectedCircuit].name;
+  showScreen('carScreen');
+});
+document.getElementById('circuitBackBtn').addEventListener('click', () => { playSound('click'); showMenu(); });
+document.getElementById('carBackBtn').addEventListener('click', () => { playSound('click');
+  if (document.getElementById('carRaceBtn').textContent === 'Close') showMenu();
+  else showScreen('circuitScreen');
+});
+
+// KEY CHANGE: Start Race button redirects to race.html
+document.getElementById('carRaceBtn').addEventListener('click', () => {
+  if (document.getElementById('carRaceBtn').textContent === 'Close') {
+    playSound('click'); showMenu(); return;
+  }
+  if (!gameState.selectedCar || !gameState.selectedCircuit) return;
+  playSound('click');
+  saveGame();
+  // Store race setup for race.html
+  localStorage.setItem('racingStar_raceSetup', JSON.stringify({
+    circuit: gameState.selectedCircuit,
+    car: gameState.selectedCar
+  }));
+  // Navigate to race page
+  window.location.href = 'race.html';
+});
+
+document.getElementById('lbBackBtn').addEventListener('click', () => { playSound('click'); showMenu(); });
+document.getElementById('achBackBtn').addEventListener('click', () => { playSound('click'); showMenu(); });
+
+// === INIT ===
+function init() {
+  resize();
+  loadGame();
+  requestAnimationFrame(loop);
+}
+init();
+</script>
+</body>
+</html>
